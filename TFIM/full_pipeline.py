@@ -15,12 +15,12 @@ import numpy as np
 from scipy.linalg import expm
 import pennylane as qml
 
-from build_TFIM import TFIM_Ham
-from find_DLA import tfim_pauliwords_gen, dla_pauli_words
-from build_isomorphism import map_to_majarana, build_so_matrix
-from BDI_decomp import from_generator, bdi, build_kak, recursive_bdi
-from BDI_verification import verify_bdi_decomposition
-from map_back import build_majorana_dla_map, map_ops_to_pauli
+from TFIM.build_TFIM import TFIM_Ham
+from TFIM.find_DLA import tfim_pauliwords_gen, dla_pauli_words
+from TFIM.build_isomorphism import map_to_majarana, build_so_matrix
+from TFIM.BDI_decomp import from_generator, bdi, build_kak, recursive_bdi
+from TFIM.BDI_verification import verify_bdi_decomposition
+from TFIM.map_back import build_majorana_dla_map, map_ops_to_pauli
 
 
 _PAULI = {
@@ -83,6 +83,14 @@ def main():
     pauli_decomp = map_ops_to_pauli(ops, mapping, time=t)
     print(f"\n[5] Pauli decomposition: {len(pauli_decomp)} gates "
           f"(expected n(2n-1) = {n*(2*n-1)})")
+    by_stage = {}
+    by_weight = {}
+    for word, _, op_type in pauli_decomp:
+        by_stage[op_type] = by_stage.get(op_type, 0) + 1
+        w = sum(1 for p in word if p != "I")
+        by_weight[w] = by_weight.get(w, 0) + 1
+    print(f"       By stage:  {by_stage}")
+    print(f"       By weight: { {k: by_weight[k] for k in sorted(by_weight)} }")
 
     # [6] Verify by reconstructing exp(-i H t) — only feasible for small n
     if n <= 10:
@@ -98,7 +106,7 @@ def main():
     else:
         print(f"\n[6] Skipped (n={n} > 10): full Hilbert space verification infeasible.")
 
-    return pauli_decomp, err
+    return pauli_decomp, err if n <= 10 else None
 
 
 def kak_time_evolution(pauli_decomp, time):
