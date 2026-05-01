@@ -84,16 +84,19 @@ def main():
     print(f"\n[5] Pauli decomposition: {len(pauli_decomp)} gates "
           f"(expected n(2n-1) = {n*(2*n-1)})")
 
-    # [6] Verify by reconstructing exp(-i H t)
-    H = TFIM_Ham(n, J=J, h=h, rotated=rotated, periodic=periodic)
-    U_ref = expm(-1.0j * H * t)
-    U_rec = np.eye(2 ** n, dtype=complex)
-    for word, coeff, _ in pauli_decomp:
-        U_rec = U_rec @ expm(-1.0j * coeff * pauli_word_to_matrix(word))
+    # [6] Verify by reconstructing exp(-i H t) — only feasible for small n
+    if n <= 10:
+        H = TFIM_Ham(n, J=J, h=h, rotated=rotated, periodic=periodic)
+        U_ref = expm(-1.0j * H * t)
+        U_rec = np.eye(2 ** n, dtype=complex)
+        for word, coeff, _ in pauli_decomp:
+            U_rec = U_rec @ expm(-1.0j * coeff * pauli_word_to_matrix(word))
 
-    err = phase_aligned_error(U_ref, U_rec)
-    print(f"\n[6] Phase-aligned reconstruction error: {err:.3e}")
-    print("    " + ("PASS" if err < 1e-8 else "FAIL"))
+        err = phase_aligned_error(U_ref, U_rec)
+        print(f"\n[6] Phase-aligned reconstruction error: {err:.3e}")
+        print("    " + ("PASS" if err < 1e-8 else "FAIL"))
+    else:
+        print(f"\n[6] Skipped (n={n} > 10): full Hilbert space verification infeasible.")
 
     return pauli_decomp, err
 
