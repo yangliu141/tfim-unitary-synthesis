@@ -168,11 +168,6 @@ class SingleQubitDecomposer:
         
         return gates, total_phase
     
-    def _zxz_decompose_analytic(self, U: np.ndarray) -> Optional[Tuple[List[Tuple[str, Optional[float]]], float]]:
-        """
-        Analytic ZXZ decomposition
-        """
-
     # Gate Simplification
 
     def _simplify_gates(self, gates: List[Tuple[str, Optional[float]]]) -> List[Tuple[str, Optional[float]]]:
