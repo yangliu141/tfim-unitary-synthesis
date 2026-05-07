@@ -170,8 +170,9 @@ def main(n_qubits, verbose=True):
 
 
 if __name__ == "__main__":
-    n_values = np.unique(np.logspace(0, 3, 22, dtype=int)) # 20 values from 1 to 1000 on a log scale
-
+    #n_values = np.unique(np.logspace(0, 3, 22, dtype=int)) # 20 values from 1 to 1000 on a log scale
+    #n_values = [i for i in n_values if i <= 300] # Limit to n=300 for practical runtime
+    n_values = [138, 193, 268]
     all_results = {}
     for n in n_values:
         results = main(n)

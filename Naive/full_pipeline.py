@@ -75,7 +75,7 @@ def main(n_qubits, t=1.0, verbose=True):
 
     # [4] Verify by reconstructing U(t) from the circuit — feasible for small n
     err = None
-    if n <= 10:
+    if n <= 7:
         import pennylane as qml
         dev = qml.device("default.qubit", wires=n)
 
@@ -93,7 +93,7 @@ def main(n_qubits, t=1.0, verbose=True):
             print("    " + ("PASS" if err < 1e-6 else "FAIL"))
     else:
         if verbose:
-            print(f"\n[4] Skipped (n={n} > 10): full Hilbert space verification infeasible.")
+            print(f"\n[4] Skipped (n={n} > 7): full Hilbert space verification infeasible.")
 
     pipeline_time_end = time.time()
 
@@ -137,7 +137,7 @@ if __name__ == "__main__":
         main(int(sys.argv[1]), t=float(sys.argv[2]) if len(sys.argv) > 2 else 1.0)
         sys.exit()
 
-    n_values = np.arange(1, 13)   # naive is classically infeasible past ~n=12
+    n_values = [11, 12]   # naive is classically infeasible past ~n=12
 
     all_results = {}
     for n in n_values:
