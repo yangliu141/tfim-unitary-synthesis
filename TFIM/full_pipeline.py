@@ -115,6 +115,9 @@ def main(n_qubits, verbose=True):
     if verbose:
         print(f"\n[5] Pauli decomposition: {len(pauli_decomp)} gates "
               f"(expected n(2n-1) = {n*(2*n-1)})")
+    # End time measurement
+    time_end = time.time()
+    
     by_stage = {}
     by_weight = {}
     for word, _, op_type in pauli_decomp:
@@ -124,9 +127,6 @@ def main(n_qubits, verbose=True):
     if verbose:
         print(f"       By stage:  {by_stage}")
         print(f"       By weight: { {k: by_weight[k] for k in sorted(by_weight)} }")
-
-    # End time measurement
-    time_end = time.time()
     if verbose:
         print(f"\nTotal decomposition time: {time_end - time_start:.8f} seconds")
     
