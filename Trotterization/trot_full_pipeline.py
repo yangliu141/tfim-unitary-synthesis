@@ -128,7 +128,7 @@ if __name__ == "__main__":
         main(n_arg, trotter_steps=r_arg, t=t_arg)
         sys.exit()
 
-    n_values = [4, 6, 8]
+    n_values = [1, 2, 3, 5, 7, 10, 13, 19, 26, 37, 51, 71, 100, 138, 193]
 
     all_results = {}
 

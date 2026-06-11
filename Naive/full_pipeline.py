@@ -139,7 +139,7 @@ if __name__ == "__main__":
         main(int(sys.argv[1]), t=float(sys.argv[2]) if len(sys.argv) > 2 else 1.0)
         sys.exit()
 
-    n_values = [11, 12]   # naive is classically infeasible past ~n=12
+    n_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]   # naive is classically infeasible past ~n=12
 
     all_results = {}
     for n in n_values:
