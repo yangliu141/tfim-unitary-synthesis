@@ -29,8 +29,10 @@ from build_TFIM import TFIM_Ham
 
 
 def phase_aligned_error(U_ref, U_test):
-    phase = np.angle(np.trace(U_test @ U_ref.conj().T))
-    return float(np.max(np.abs(U_test - np.exp(1j * phase) * U_ref)))
+    # Frobenius norm, identical metric/convention to the TFIM and Trotter pipelines.
+    d = U_ref.shape[0]
+    phase = np.angle(np.trace(U_test @ U_ref.conj().T) / d)
+    return float(np.linalg.norm(U_ref - np.exp(-1j * phase) * U_test))
 
 
 def main(n_qubits, t=1.0, verbose=True):

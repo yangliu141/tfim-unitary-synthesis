@@ -22,6 +22,7 @@ from build_isomorphism import map_to_majarana, build_so_matrix
 from BDI_decomp import from_generator, bdi, build_kak, recursive_bdi
 from BDI_verification import verify_bdi_decomposition
 from map_back import build_majorana_dla_map, map_ops_to_pauli
+from gate_counting import pauli_rot_elementary_counts
 
 import time
 
@@ -64,13 +65,12 @@ def kak_time_evolution(pauli_decomp, time):
         qml.PauliRot(2 * coeff, pauli_str, wires=wires)
 
 
-def main(n_qubits, verbose=True):
+def main(n_qubits, t=1.0, verbose=True):
 
     pipeline_time_start = time.time()
     results = {}
 
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else n_qubits
-    t = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
+    n = n_qubits
 
     J, h = 1.0, 1.0
     rotated, periodic = True, False
@@ -135,8 +135,11 @@ def main(n_qubits, verbose=True):
         H = TFIM_Ham(n, J=J, h=h, rotated=rotated, periodic=periodic)
         U_ref = expm(-1.0j * H * t)
         U_rec = np.eye(2 ** n, dtype=complex)
-        for word, coeff, _ in pauli_decomp:
-            U_rec = U_rec @ expm(-1.0j * coeff * pauli_word_to_matrix(word))
+        for word, coeff, op_type in pauli_decomp:
+            # 'a0' coeffs were stored divided by t in map_ops_to_pauli; re-multiply
+            # here (matching kak_time_evolution) so reconstruction is valid for any t.
+            coeff_eff = coeff * t if op_type == "a0" else coeff
+            U_rec = U_rec @ expm(-1.0j * coeff_eff * pauli_word_to_matrix(word))
 
         err = phase_aligned_error(U_ref, U_rec)
         if verbose:
@@ -147,9 +150,15 @@ def main(n_qubits, verbose=True):
             print(f"\n[6] Skipped (n={n} > 10): full Hilbert space verification infeasible.")
 
 
+    # Compile Pauli rotations to elementary {CNOT, single-qubit} gates for a fair
+    # comparison with the Naive pipeline (analysis step, outside the timer).
+    elem = pauli_rot_elementary_counts(pauli_decomp)
+
     results["Pauli decomposition"] = pauli_decomp
     results["Error"] = err if n <= 8 else None
-    results["Gate counts"] = {"total": len(pauli_decomp), "by_stage": by_stage, "by_weight": by_weight}
+    results["Gate counts"] = {"total": len(pauli_decomp), "by_stage": by_stage, "by_weight": by_weight,
+                              "cnot": elem["CNOT"], "single_qubit": elem["single_qubit"],
+                              "elementary_total": elem["total"]}
     results["Decomposition time"] = time_end - time_start  # Placeholder for timing info if needed
     pipeline_time_end = time.time()
     results["Total pipeline time"] = pipeline_time_end - pipeline_time_start
@@ -162,17 +171,25 @@ def main(n_qubits, verbose=True):
     with open(results_file, "a") as f:
         # If file is empty, write header
         if f.tell() == 0:
-            f.write("n_qubits, total_time, decomposition_time, error, total_gates\n")
+            f.write("n_qubits, total_time, decomposition_time, error, total_gates, cnot, single_qubit, elementary_total\n")
         err_str = f"{results['Error']:.3e}" if results['Error'] is not None else "N/A"
-        f.write(f"{n}, {results['Total pipeline time']:.8f}, {results['Decomposition time']:.8f}, {err_str}, {results['Gate counts']['total']}\n")
+        gc = results["Gate counts"]
+        f.write(f"{n}, {results['Total pipeline time']:.8f}, {results['Decomposition time']:.8f}, {err_str}, "
+                f"{gc['total']}, {gc['cnot']}, {gc['single_qubit']}, {gc['elementary_total']}\n")
 
     return results
 
 
 if __name__ == "__main__":
+
+    if len(sys.argv) > 1:
+        # Single run: python full_pipeline.py [n] [t]
+        main(int(sys.argv[1]), t=float(sys.argv[2]) if len(sys.argv) > 2 else 1.0)
+        sys.exit()
+
     #n_values = np.unique(np.logspace(0, 3, 22, dtype=int)) # 20 values from 1 to 1000 on a log scale
     #n_values = [i for i in n_values if i <= 300] # Limit to n=300 for practical runtime
-    n_values = [138, 193, 268]
+    n_values = [1, 2, 3, 5, 7, 10, 13, 19, 26, 37, 51, 71, 100, 138, 193]
     all_results = {}
     for n in n_values:
         results = main(n)

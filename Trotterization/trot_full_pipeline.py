@@ -14,23 +14,22 @@ Usage:  python trotter_pipeline.py [n] [t] [r]
 import sys
 import os
 import time
-sys.path.append(os.path.abspath("../TFIM"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "TFIM"))
 from trotterization import trotter_pauli_decomp, unitary_from_pauli_decomp,phase_aligned_error
 from build_TFIM import TFIM_Ham
+from gate_counting import pauli_rot_elementary_counts
 from scipy.linalg import expm
 
 
 
-def main(n_qubits, trotter_steps, verbose=True):
-    
+def main(n_qubits, trotter_steps, t=1.0, verbose=True):
+
     # Start time
     pipeline_time_start = time.time()
     results = {}
 
-    # input arguments
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else n_qubits
-    t = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
-    r = int(sys.argv[3]) if len(sys.argv) > 3 else trotter_steps
+    n = n_qubits
+    r = trotter_steps
 
     J, h = 1.0, 1.0
     rotated, periodic = True, False
@@ -80,12 +79,19 @@ def main(n_qubits, trotter_steps, verbose=True):
         if verbose:
             print(f"\n[3] Skipped verification (n={n} > 8): full Hilbert space reconstruction infeasible.")
 
+    # Compile Pauli rotations to elementary {CNOT, single-qubit} gates for a
+    # fair comparison with the Naive pipeline (analysis step, outside the timer).
+    elem = pauli_rot_elementary_counts(pauli_decomp)
+
     results["Pauli decomposition"] = pauli_decomp
     results["Error"] = err
     results["Gate counts"] = {
     "total": len(pauli_decomp),
     "coupling": r * (n - 1),
-    "field": r * n
+    "field": r * n,
+    "cnot": elem["CNOT"],
+    "single_qubit": elem["single_qubit"],
+    "elementary_total": elem["total"],
     }
     results["Decomposition time"] = time_end - time_start
     results["Verification time"] = verification_time
@@ -99,19 +105,29 @@ def main(n_qubits, trotter_steps, verbose=True):
     results_file = os.path.join(results_dir, "TFIM_trotter_results.txt")
     with open(results_file, "a") as f:
         if f.tell() == 0:
-            f.write("n_qubits, trotter_steps, total_time, decomposition_time, verification_time, error, total_gates\n")
+            f.write("n_qubits, trotter_steps, total_time, decomposition_time, verification_time, error, total_gates, cnot, single_qubit, elementary_total\n")
         err_str = f"{results['Error']:.3e}" if results["Error"] is not None else "N/A"
         ver_str = f"{results['Verification time']:.8f}" if results["Verification time"] is not None else "N/A"
+        gc = results["Gate counts"]
         f.write(
             f"{n}, {r}, {results['Total pipeline time']:.8f}, "
             f"{results['Decomposition time']:.8f}, {ver_str}, {err_str}, "
-            f"{results['Gate counts']['total']}\n"
+            f"{gc['total']}, {gc['cnot']}, {gc['single_qubit']}, {gc['elementary_total']}\n"
         )
 
     return results
 
 
 if __name__ == "__main__":
+
+    if len(sys.argv) > 1:
+        # Single run: python trot_full_pipeline.py [n] [t] [r]
+        n_arg = int(sys.argv[1])
+        t_arg = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
+        r_arg = int(sys.argv[3]) if len(sys.argv) > 3 else n_arg
+        main(n_arg, trotter_steps=r_arg, t=t_arg)
+        sys.exit()
+
     n_values = [4, 6, 8]
 
     all_results = {}
