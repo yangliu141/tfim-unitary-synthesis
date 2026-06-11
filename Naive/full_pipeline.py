@@ -99,35 +99,30 @@ def main(n_qubits, t=1.0, verbose=True):
 
     pipeline_time_end = time.time()
 
-    results["Gate counts"] = {"total": len(gates), "by_type": dict(gate_counts)}
+    # Naive gates are already elementary, so total_gates == elementary_total.
+    cnot         = gate_counts.get("CNOT", 0)
+    single_qubit = gate_counts.get("Ry", 0) + gate_counts.get("Rz", 0)
+    total        = len(gates)
+
+    results["Gate counts"] = {"total": total, "by_type": dict(gate_counts),
+                              "cnot": cnot, "single_qubit": single_qubit,
+                              "elementary_total": total}
     results["Op counts"] = {"total": len(ops),   "by_type": dict(op_counts)}
     results["Error"] = err
     results["Decomposition time"] = time_end - time_start
     results["Total pipeline time"] = pipeline_time_end - pipeline_time_start
 
-    # Export results
+    # Export results (single file, same schema as TFIM_decomposition_results.txt)
     results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Results")
     os.makedirs(results_dir, exist_ok=True)
+    results_file = os.path.join(results_dir, "Naive_decomposition_results.txt")
 
-    times_file = os.path.join(results_dir, "Naive_decomposition_times.txt")
-
-    with open(times_file, "a") as f:
+    with open(results_file, "a") as f:
         if f.tell() == 0:
-            f.write("n_qubits, total_pipeline_time, decomposition_time\n")
-    
-        f.write(f"{n}, {results['Total pipeline time']:.8f}, {results['Decomposition time']:.8f}\n")
-
-    counts_file = os.path.join(results_dir, "Naive_decomposition_errors_and_counts.txt")
-
-    with open(counts_file, "a") as f:
-        if f.tell() == 0:
-            f.write("n_qubits, error, total_gates, Ry, Rz, CNOT\n")
+            f.write("n_qubits, total_time, decomposition_time, error, total_gates, cnot, single_qubit, elementary_total\n")
         err_str = f"{err:.3e}" if err is not None else "N/A"
-
-        f.write(f"{n}, {err_str}, {results['Gate counts']['total']},"
-                f"{gate_counts.get('Ry', 0)},"
-                f"{gate_counts.get('Rz', 0)},"
-                f"{gate_counts.get('CNOT', 0)}\n")
+        f.write(f"{n}, {results['Total pipeline time']:.8f}, {results['Decomposition time']:.8f}, "
+                f"{err_str}, {total}, {cnot}, {single_qubit}, {total}\n")
 
     return results
 
