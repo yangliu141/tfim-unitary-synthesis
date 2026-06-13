@@ -43,7 +43,7 @@ def main(n_qubits, trotter_steps, t=1.0, verbose=True):
     n_field_terms = n
     gates_per_step = n_coupling_terms + n_field_terms
     expected_total_gates = r * gates_per_step
-
+    
     if verbose:
         print(f"\n[1] Hamiltonian split")
         print(f"    Coupling terms per step: {n_coupling_terms}")
@@ -102,7 +102,7 @@ def main(n_qubits, trotter_steps, t=1.0, verbose=True):
     # Export results to a text file for later analysis
     results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Results")
     os.makedirs(results_dir, exist_ok=True)
-    results_file = os.path.join(results_dir, "TFIM_trotter_results.txt")
+    results_file = os.path.join(results_dir, "TFIM_trotter_results_large_r.txt")
     with open(results_file, "a") as f:
         if f.tell() == 0:
             f.write("n_qubits, trotter_steps, total_time, decomposition_time, verification_time, error, total_gates, cnot, single_qubit, elementary_total\n")

@@ -100,9 +100,9 @@ def main(n_qubits, t=1.0, verbose=True):
     pipeline_time_end = time.time()
 
     # Naive gates are already elementary, so total_gates == elementary_total.
-    cnot         = gate_counts.get("CNOT", 0)
+    cnot = gate_counts.get("CNOT", 0)
     single_qubit = gate_counts.get("Ry", 0) + gate_counts.get("Rz", 0)
-    total        = len(gates)
+    total = len(gates)
 
     results["Gate counts"] = {"total": total, "by_type": dict(gate_counts),
                               "cnot": cnot, "single_qubit": single_qubit,
