@@ -19,7 +19,7 @@ from trotterization import trotter_pauli_decomp, unitary_from_pauli_decomp,phase
 from build_TFIM import TFIM_Ham
 from gate_counting import pauli_rot_elementary_counts
 from scipy.linalg import expm
-
+import numpy as np
 
 
 def main(n_qubits, trotter_steps, t=1.0, verbose=True):
@@ -128,12 +128,12 @@ if __name__ == "__main__":
         main(n_arg, trotter_steps=r_arg, t=t_arg)
         sys.exit()
 
-    n_values = [1, 2, 3, 5, 7, 10, 13, 19, 26, 37, 51, 71, 100, 138, 193]
+    n_values = [3]
 
     all_results = {}
 
     for n in n_values:
-        r_values = [1, 2, 4, 8, n, 2*n, 4*n]
+        r_values = np.logspace(0, 6, 100, dtype=int)
 
         for r in r_values:
             results = main(n, trotter_steps=r)
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(8, 5))
 
     for n in n_values:
-        r_values = [1, 2, 4, 8, n, 2*n, 4*n]
+        r_values = np.logspace(0, 6, 100, dtype=int)
         gate_counts = [
             all_results[(n, r)]["Gate counts"]["total"]
             for r in r_values
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(8, 5))
 
     for n in n_values:
-        r_values = [1, 2, 4, 8, n, 2*n, 4*n]
+        r_values = np.logspace(0, 6, 100, dtype=int)
         errors = [
             all_results[(n, r)]["Error"]
             for r in r_values
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(8, 5))
 
     for n in n_values:
-        r_values = [1, 2, 4, 8, n, 2*n, 4*n]
+        r_values = np.logspace(0, 6, 100, dtype=int)
         times = [
             all_results[(n, r)]["Decomposition time"]
             for r in r_values
