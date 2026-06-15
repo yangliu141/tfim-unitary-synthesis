@@ -1,3 +1,0 @@
-n_qubits, total_time, decomposition_time, error, total_gates
-138, 3869.75383306, 1.04585195, N/A, 37742
-193, 16673.62613797, 2.58080673, N/A, 74135
