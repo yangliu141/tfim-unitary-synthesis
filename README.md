@@ -27,7 +27,7 @@ The Python dependencies (`numpy`, `scipy`, `pennylane`, `matplotlib`, `pandas`) 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/willism/Unitary_Synthesis_for_TFIM.git
+   git clone https://github.com/willism/Compiling_The_Transverse-Field_Ising_Model.git
    ```
 
 2. Install dependencies:
