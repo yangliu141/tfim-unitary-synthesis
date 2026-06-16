@@ -22,15 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from functions.naive.decompose import decompose
 from functions.naive.single_qubit_decomposer import to_gates
 from functions.common.build_TFIM import TFIM_Ham
-
-
-def phase_aligned_error(U_ref, U_test):
-    """
-    Compute the phase-aligned Frobenius norm error between two unitaries.
-    """
-    d = U_ref.shape[0]
-    phase = np.angle(np.trace(U_test @ U_ref.conj().T) / d)
-    return float(np.linalg.norm(U_ref - np.exp(-1j * phase) * U_test))
+from functions.common.verification import phase_aligned_error
 
 
 def main(n_qubits, t=1.0, verbose=True):

@@ -22,7 +22,6 @@ from functions.trotter.trotterization import trotter_pauli_decomp, unitary_from_
 from functions.common.build_TFIM import TFIM_Ham
 from functions.common.gate_counting import pauli_rot_elementary_counts
 from scipy.linalg import expm
-import numpy as np
 
 
 def main(n_qubits, trotter_steps, t=1.0, verbose=True):

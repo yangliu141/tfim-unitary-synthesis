@@ -23,32 +23,9 @@ from functions.structure_preserving.build_isomorphism import map_to_majarana, bu
 from functions.structure_preserving.BDI_decomp import from_generator, recursive_bdi
 from functions.structure_preserving.map_back import build_majorana_dla_map, map_ops_to_pauli
 from functions.common.gate_counting import pauli_rot_elementary_counts
+from functions.common.verification import phase_aligned_error, reconstruct_pauli_decomp
 
 import time
-
-
-# Pauli matrices
-_PAULI = {
-    "I": np.eye(2, dtype=complex),
-    "X": np.array([[0, 1], [1, 0]], dtype=complex),
-    "Y": np.array([[0, -1j], [1j, 0]], dtype=complex),
-    "Z": np.array([[1, 0], [0, -1]], dtype=complex),
-}
-
-
-def pauli_word_to_matrix(pw):
-    """Convert a Pauli word to its corresponding matrix."""
-    mat = _PAULI[pw[0]]
-    for p in pw[1:]:
-        mat = np.kron(mat, _PAULI[p])
-    return mat
-
-
-def phase_aligned_error(U_ref, U_test):
-    """Compute the phase-aligned Frobenius norm error between two unitaries."""
-    d = U_ref.shape[0]
-    phase = np.angle(np.trace(U_test @ U_ref.conj().T) / d)
-    return np.linalg.norm(U_ref - np.exp(-1j * phase) * U_test)
 
 
 def main(n_qubits, t=1.0, verbose=True):
@@ -120,13 +97,7 @@ def main(n_qubits, t=1.0, verbose=True):
     if n <= 7:
         H = TFIM_Ham(n, J=J, h=h, rotated=rotated, periodic=periodic)
         U_ref = expm(-1.0j * H * t)
-        U_rec = np.eye(2 ** n, dtype=complex)
-        for word, coeff, op_type in pauli_decomp:
-            # 'a0' coeffs were stored divided by t in map_ops_to_pauli; re-multiply
-            # here (matching kak_time_evolution) so reconstruction is valid for any t.
-            coeff_eff = coeff * t if op_type == "a0" else coeff
-            U_rec = U_rec @ expm(-1.0j * coeff_eff * pauli_word_to_matrix(word))
-
+        U_rec = reconstruct_pauli_decomp(pauli_decomp, n, t)
         err = phase_aligned_error(U_ref, U_rec)
         if verbose:
             print(f"\n[6] Phase-aligned reconstruction error: {err:.3e}")
