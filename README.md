@@ -1,82 +1,146 @@
-# Unitary Synthesis for the Transverse Field Ising Model
+# Compiling the Transverse Field Ising Model
+---
 
-A pipeline that decomposes the time-evolution operator of the
-Transverse Field Ising Model (TFIM) into a sequence of single- and
-two-qubit Pauli rotations, by exploiting the model's free-fermion
-structure.
+## Description
 
-The route through the pipeline is:
+We implement and compare three different unitary synthesis methods for the time evolution of the transverse-field Ising model (TFIM): a naive recursive Cartan (AIII/Type-A) decomposition, a structure-preserving decomposition (SPD) based on the BDI Cartan decomposition in $\mathrm{SO}(2n)$, and first-order Trotterization.
 
-```
-H_TFIM  --DLA-->  g  --rho-->  so(2n)  --exp-->  U(t)
-        --recursive BDI/KAK-->  K1 A K2  --map back-->  { exp(-i theta_k P_k) }
-```
+Here you will find instructions on how to clone, install and run the necessary files, a structured overview of the folders and files used, as well as in-depth descriptions of some of the specific elements.
 
-Concretely, instead of synthesising `U(t) = exp(-i H t)` as a generic
-2^n x 2^n unitary, we work in the `so(2n)` representation provided by
-the Majorana / Jordan–Wigner isomorphism, perform a recursive
-Cosine–Sine (BDI / KAK) decomposition there, and then map every
-rotation back to a Pauli rotation acting on the qubit register. The
-final circuit contains exactly `n(2n - 1)` Pauli rotations — the
-dimension of the dynamical Lie algebra of the TFIM.
 
-## Repository layout
+## Table of Contents
+- [Project Prerequisites](#project-prerequisites)
+- [Installation](#installation)
+- [Folder Structure](#folder-structure)
+- [Description of Crucial Files](#description-of-crucial-files)
+- [Workflow](#workflow)
 
-| File | Purpose |
-| --- | --- |
-| `build_TFIM.py` | Builds the TFIM Hamiltonian matrix and its generators. |
-| `find_DLA.py` | Generates Pauli words and computes the dynamical Lie algebra (DLA) by nested commutators. |
-| `build_isomorphism.py` | Maps Pauli generators to the `so(2n)` Majorana representation and assembles the skew-symmetric matrix `rho(iH)`. |
-| `BDI_decomp.py` | Cosine–Sine / BDI(p,q) decomposition and the recursive KAK splitter. |
-| `BDI_verification.py` | Reconstructs `U(t)` from the recursive ops and checks it against the original. |
-| `map_back.py` | Converts the `so(2n)` rotations and angles back into Pauli rotations on the qubit register. |
-| `full_pipeline.py` | End-to-end script: TFIM -> DLA -> so(2n) -> U(t) -> recursive BDI -> Pauli rotations -> reconstruction check. |
-| `full_pipeline.ipynb` | Notebook version of the pipeline with intermediate output and plots. |
+## Project Prerequisites
+Before installation, make sure you have:
+- Python 3.10 or higher
+- pip 22+
+- Git
 
-## Usage
+The Python dependencies (`numpy`, `scipy`, `pennylane`, `matplotlib`, `pandas`) are listed in `requirements.txt` and installed in the next step.
 
-Run the full pipeline from the command line:
+## Installation
 
-```bash
-python full_pipeline.py [n] [t]
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/willism/Unitary_Synthesis_for_TFIM.git
+   ```
 
-* `n` — number of qubits (default `4`)
-* `t` — evolution time (default `1.0`)
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Example output:
+3. Run the project (see [workflow](#workflow)):
+   All files should be run from the project root folder.
 
-```
-n = 4, J = 1.0, h = 1.0, t = 1.0, rotated = True, periodic = False
-[1] Initial generators: 7 | DLA size: 28 (expected n(2n-1) = 28)
-[2] rho(iH) shape: (8, 8), skew-symmetric: True
-[3] U(t) in SO(8), orthogonal: True
-[4] Recursive BDI: ... ops, breakdown: {...}
-[5] Pauli decomposition: 28 gates (expected n(2n-1) = 28)
-[6] Phase-aligned reconstruction error: ...e-..
-    PASS
-```
+   Running a pipeline:
+   ```bash
+   python pipelines/sp_full_pipeline.py [n] [t]
+   ```
 
-`full_pipeline.py` also exposes `kak_time_evolution(pauli_decomp, time)`,
-a PennyLane circuit fragment that applies the decomposition as
-`qml.PauliRot` gates — useful for plugging the synthesised circuit into
-a larger PennyLane workflow.
+   Running the notebooks: open any file in `showcase_notebooks/` in Jupyter and run the cells.
 
-## Dependencies
 
-* Python 3.x
-* `numpy`
-* `scipy` (`scipy.linalg.cossin`, `expm`)
-* `pennylane` (only required for `kak_time_evolution`)
+## Folder Structure
 
-## Notes on the decomposition
+### `functions/`
+- **Purpose:** Contains all library code, split into the subfolders `/common`, `/structure_preserving`, `/naive` and `/trotter`. These hold the building blocks used by the pipelines and notebooks.
+- **You can add:** New modules implementing additional methods or helper functions in the relevant subfolder.
+- **Avoid:** Moving or renaming the subfolders, as the pipelines and notebooks import from them by their package paths.
 
-* The `cossin` call in `BDI_decomp.bdi` deliberately uses `q = p`
-  (a symmetric column split) so that the canonical BDI(p,q) layout is
-  produced even for non-power-of-2 dimensions; the asymmetric split
-  introduces a permutation component that breaks the Pauli mapping.
-* The first level of CS angles is tagged `"a0"` to mark them as the
-  ones tied to the original evolution time `t`. They are divided by
-  `t` at decomposition time and re-multiplied by the desired evolution
-  time when the circuit is applied. Angles produced by deeper
-  recursive levels are tagged `"a"` and are *not* rescaled.
+---
+
+### `functions/common/`
+- **Purpose:** Helpers shared across all three methods, including the TFIM Hamiltonian construction and the elementary gate counting.
+- **You can add:** New shared utilities used by more than one method.
+- **Avoid:** Placing method-specific code here; it belongs in the corresponding method subfolder.
+
+---
+
+### `functions/structure_preserving/`, `functions/naive/`, `functions/trotter/`
+- **Purpose:** One subfolder per synthesis method, containing the decomposition logic for the SPD, naive, and Trotter methods respectively.
+- **You can add:** New functions extending a given method.
+- **Avoid:** Deleting files, as they are imported by the corresponding pipeline.
+
+---
+
+### `pipelines/`
+- **Purpose:** Contains the runnable driver scripts (`sp_full_pipeline.py`, `naive_full_pipeline.py`, `trotter_full_pipeline.py`) that run a full method end-to-end and write the results to `Results/`.
+- **You can add:** New driver scripts for additional experiments.
+- **Avoid:** Removing the existing scripts, as they generate the result files used in the analysis.
+
+---
+
+### `showcase_notebooks/`
+- **Purpose:** Contains demonstration notebooks: one per method (`structure_preserving.ipynb`, `naive.ipynb`) and a `comparison.ipynb` that reads the result files and produces the comparison plots.
+- **You can add:** New notebooks demonstrating or visualising other aspects of the methods.
+- **Avoid:** Deleting `comparison.ipynb`, as it generates the figures used in the report.
+
+---
+
+### `Results/`
+- **Purpose:** Folder containing the output `.txt` result files generated by the pipelines and the `.png` figures generated by the notebooks.
+- **You can add:** New results from new pipelines you run.
+- **Avoid:** Deleting files without knowing you no longer need the results.
+
+---
+
+### `README.md`
+- **Purpose:** This file provides project context and documentation.
+- **You can add:** Setup instructions, usage examples, or contribution guidelines.
+- **Avoid:** Leaving it outdated when major changes are made.
+
+---
+
+### `Compiling_the_Transverse_Field_Ising_Model.pdf`
+- **Purpose:** The written report based on this repository.
+- **You can:** Read it for a detailed explanation of the theory, implementation and findings.
+- **Avoid:** Using the contents of this file without citing it properly.
+
+---
+
+## Description of Crucial Files
+
+### Files in `functions/common/`
+- `build_TFIM.py` - Builds the TFIM Hamiltonian (and its rotated form) and the Pauli generators.
+- `gate_counting.py` - Compiles a list of Pauli rotations to an elementary `{CNOT, single-qubit}` gate count, so the methods can be compared on the same footing.
+
+### Files in `functions/structure_preserving/`
+- `find_DLA.py` - Generates the TFIM Pauli generators and closes them into the dynamical Lie algebra (DLA).
+- `build_isomorphism.py` - Maps the Pauli generators to quadratic Majorana operators and builds the skew-symmetric `so(2n)` matrix.
+- `BDI_decomp.py` - Performs the recursive BDI/KAK decomposition of the orthogonal time-evolution matrix.
+- `map_back.py` - Maps the resulting plane rotations back to Pauli rotations on qubits.
+- `BDI_verification.py` - Reconstructs the unitary from the decomposition for verification.
+
+### Files in `functions/naive/`
+- `decompose.py` - Recursive AIII/Type-A (cosine-sine) decomposition of an arbitrary unitary into a flat list of ops.
+- `single_qubit_decomposer.py` - Expands the ops into elementary `{Ry, Rz, CNOT}` gates via the ZYZ decomposition and the Gray-code uniformly-controlled rotations.
+
+### Files in `functions/trotter/`
+- `trotterization.py` - Builds the first-order Trotter decomposition as a list of Pauli rotations and provides the reconstruction and error helpers.
+
+### Files in `pipelines/`
+- `sp_full_pipeline.py`, `naive_full_pipeline.py`, `trotter_full_pipeline.py` - Run a full method for a given number of qubits, verify it for small `n`, and append the gate count, error and timing to `Results/`. Each can be run for a single `n` from the command line, e.g.
+  ```bash
+  python pipelines/sp_full_pipeline.py 4 1.0
+  ```
+  or run with no arguments to sweep over a range of `n`.
+
+## Workflow
+All files should be run from the project root folder.
+1. Run the three pipelines in `pipelines/` to generate the result files in `Results/`.
+2. Open `showcase_notebooks/comparison.ipynb` and run the cells to produce the comparison figures (gate count, reconstruction error and decomposition time) and the fitted scalings.
+3. Open `showcase_notebooks/structure_preserving.ipynb` or `naive.ipynb` to step through a single method on a small system.
+4. Add your own driver script to `pipelines/` to run other experiments, and visualise them with a new notebook in `showcase_notebooks/`.
+
+## References
+[1] David Wierichs et al. *Recursive Cartan decompositions for unitary synthesis*. arXiv preprint, (arXiv:2503.19014), 2025.
+
+
+## Authors
+Yang Liu & William Schjerve Moe

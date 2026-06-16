@@ -4,7 +4,6 @@ from itertools import combinations
 # Function for writing the Hamiltonian in terms of Pauli Words
 def tfim_pauliwords_gen(n, rotated = True, periodic = False):
     gens = []
-    # Hmmmm litt stygt, kanskej gjøre om til en funksjon
     if rotated: 
         # XX couplings
         for i in range(n-1):
@@ -108,7 +107,7 @@ def commutator_pauli_words(pw1, pw2):
 
     if (are_commuting(pw1,pw2)):
         return None
-    phase, results = multiply_pauli_words(pw1,pw2)
+    _, results = multiply_pauli_words(pw1,pw2)
     return results
 
 

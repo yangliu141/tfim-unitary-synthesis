@@ -19,6 +19,7 @@ def decompose(U):
     For an n-qubit system, size encodes which qubit is the UCR target:
       target qubit = n - log2(size),  controls = qubits below the target.
     """
+    # Verify unitary input
     if not np.allclose(U @ U.conj().T, np.eye(len(U)), atol=_ATOL):
         raise ValueError(
             f"Input is not unitary "
@@ -47,10 +48,9 @@ def _aiii(U, size):
 def _type_a(U_top, V_bot, size):
     """Type-A demultiplexing: block-diag(U_top, V_bot) = (I x W) * D * (I x X).
 
-    Uses Schur: U_top @ V_bot.H = W * diag(e^{2i*phi}) * W.H,
-    giving X = diag(e^{i*phi}) @ W.H @ V_bot.
-    W and X are (size//2 x size//2) unitaries on the lower register.
+    Uses Schur: U_top @ V_bot.H = W * diag(e^{2i*phi}) * W.H
     """
+
     p = size // 2
 
     delta = U_top @ V_bot.conj().T

@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 """
-Full TFIM decomposition pipeline.
+Full structure-preserving decomposition pipeline.
 
     H_TFIM --DLA--> g --rho--> so(2n) --exp--> U(t)
     --recursive BDI/KAK--> K1 A K2 --map back--> {exp(i theta_k P_k)}
 
-Usage:  python full_pipeline.py [n] [t]
+Usage:  python pipelines/sp_full_pipeline.py [n] [t]
         n: number of qubits (default 4)
         t: evolution time   (default 1.0)
 """
@@ -14,19 +13,21 @@ import sys
 import os
 import numpy as np
 from scipy.linalg import expm
-import pennylane as qml
 
-from build_TFIM import TFIM_Ham
-from find_DLA import tfim_pauliwords_gen, dla_pauli_words
-from build_isomorphism import map_to_majarana, build_so_matrix
-from BDI_decomp import from_generator, bdi, build_kak, recursive_bdi
-from BDI_verification import verify_bdi_decomposition
-from map_back import build_majorana_dla_map, map_ops_to_pauli
-from gate_counting import pauli_rot_elementary_counts
+# Make the repo root importable so the `functions` package is found
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from functions.common.build_TFIM import TFIM_Ham
+from functions.structure_preserving.find_DLA import tfim_pauliwords_gen, dla_pauli_words
+from functions.structure_preserving.build_isomorphism import map_to_majarana, build_so_matrix
+from functions.structure_preserving.BDI_decomp import from_generator, recursive_bdi
+from functions.structure_preserving.map_back import build_majorana_dla_map, map_ops_to_pauli
+from functions.common.gate_counting import pauli_rot_elementary_counts
 
 import time
 
 
+# Pauli matrices
 _PAULI = {
     "I": np.eye(2, dtype=complex),
     "X": np.array([[0, 1], [1, 0]], dtype=complex),
@@ -36,6 +37,7 @@ _PAULI = {
 
 
 def pauli_word_to_matrix(pw):
+    """Convert a Pauli word to its corresponding matrix."""
     mat = _PAULI[pw[0]]
     for p in pw[1:]:
         mat = np.kron(mat, _PAULI[p])
@@ -43,26 +45,10 @@ def pauli_word_to_matrix(pw):
 
 
 def phase_aligned_error(U_ref, U_test):
+    """Compute the phase-aligned Frobenius norm error between two unitaries."""
     d = U_ref.shape[0]
     phase = np.angle(np.trace(U_test @ U_ref.conj().T) / d)
     return np.linalg.norm(U_ref - np.exp(-1j * phase) * U_test)
-
-
-
-
-def kak_time_evolution(pauli_decomp, time):
-    """PennyLane circuit fragment that applies the decomposition.
-
-    The 'a0' angles were divided by t at decomposition time, so they must be
-    re-multiplied by ``time`` here. Pauli words are applied in reverse so that
-    the matrix product matches U_rec = G_0 @ G_1 @ ... @ G_K.
-    """
-    for word, coeff, op_type in pauli_decomp[::-1]:
-        if op_type == "a0":
-            coeff = coeff * time
-        pauli_str = "".join(p for p in word if p != "I")
-        wires = [i for i, p in enumerate(word) if p != "I"]
-        qml.PauliRot(2 * coeff, pauli_str, wires=wires)
 
 
 def main(n_qubits, t=1.0, verbose=True):
@@ -125,13 +111,13 @@ def main(n_qubits, t=1.0, verbose=True):
         w = sum(1 for p in word if p != "I")
         by_weight[w] = by_weight.get(w, 0) + 1
     if verbose:
-        print(f"       By stage:  {by_stage}")
-        print(f"       By weight: { {k: by_weight[k] for k in sorted(by_weight)} }")
+        print(f"By stage:  {by_stage}")
+        print(f"By weight: { {k: by_weight[k] for k in sorted(by_weight)} }")
     if verbose:
         print(f"\nTotal decomposition time: {time_end - time_start:.8f} seconds")
     
     # [6] Verify by reconstructing exp(-i H t) — only feasible for small n
-    if n <= 8:
+    if n <= 7:
         H = TFIM_Ham(n, J=J, h=h, rotated=rotated, periodic=periodic)
         U_ref = expm(-1.0j * H * t)
         U_rec = np.eye(2 ** n, dtype=complex)
@@ -147,27 +133,27 @@ def main(n_qubits, t=1.0, verbose=True):
             print("    " + ("PASS" if err < 1e-8 else "FAIL"))
     else:
         if verbose:
-            print(f"\n[6] Skipped (n={n} > 10): full Hilbert space verification infeasible.")
+            print(f"\n[6] Skipped (n={n} > 7): full Hilbert space verification infeasible.")
 
 
     # Compile Pauli rotations to elementary {CNOT, single-qubit} gates for a fair
-    # comparison with the Naive pipeline (analysis step, outside the timer).
+    # comparison with the Naive pipeline.
     elem = pauli_rot_elementary_counts(pauli_decomp)
 
     results["Pauli decomposition"] = pauli_decomp
-    results["Error"] = err if n <= 8 else None
+    results["Error"] = err if n <= 7 else None
     results["Gate counts"] = {"total": len(pauli_decomp), "by_stage": by_stage, "by_weight": by_weight,
                               "cnot": elem["CNOT"], "single_qubit": elem["single_qubit"],
                               "elementary_total": elem["total"]}
-    results["Decomposition time"] = time_end - time_start  # Placeholder for timing info if needed
+    results["Decomposition time"] = time_end - time_start
     pipeline_time_end = time.time()
     results["Total pipeline time"] = pipeline_time_end - pipeline_time_start
 
 
-    # Export results to a text file for later analysis
+    # Export results
     results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Results")
     os.makedirs(results_dir, exist_ok=True)
-    results_file = os.path.join(results_dir, "TFIM_decomposition_results.txt")
+    results_file = os.path.join(results_dir, "SPD_decomposition_results.txt")
     with open(results_file, "a") as f:
         # If file is empty, write header
         if f.tell() == 0:
@@ -187,8 +173,7 @@ if __name__ == "__main__":
         main(int(sys.argv[1]), t=float(sys.argv[2]) if len(sys.argv) > 2 else 1.0)
         sys.exit()
 
-    #n_values = np.unique(np.logspace(0, 3, 22, dtype=int)) # 20 values from 1 to 1000 on a log scale
-    #n_values = [i for i in n_values if i <= 300] # Limit to n=300 for practical runtime
+    
     n_values = [1, 2, 3, 5, 7, 10, 13, 19, 26, 37, 51, 71, 100, 138, 193]
     all_results = {}
     for n in n_values:
@@ -202,7 +187,6 @@ if __name__ == "__main__":
     times = [all_results[n]["Decomposition time"] for n in n_values]
     plt.figure(figsize=(8, 5))
     plt.plot(n_values, times, color='red', marker='o')
-    #plt.yscale('log')
     plt.xlabel('Number of Qubits (n)')
     plt.ylabel('Decomposition Time (seconds)')
     plt.title('Decomposition Time vs Number of Qubits')
@@ -212,7 +196,6 @@ if __name__ == "__main__":
     gate_counts = [all_results[n]["Gate counts"]["total"] for n in n_values]
     plt.figure(figsize=(8, 5))
     plt.plot(n_values, gate_counts, color='blue', marker='o')
-    #plt.yscale('log')
     plt.xlabel('Number of Qubits (n)')
     plt.ylabel('Total Number of Gates')
     plt.title('Total Number of Gates vs Number of Qubits')

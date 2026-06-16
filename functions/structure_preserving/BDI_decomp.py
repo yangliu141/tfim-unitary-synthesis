@@ -1,6 +1,11 @@
 import numpy as np
 from scipy.linalg import cossin, expm
 
+"""
+The general BDI structure-preserving decomposition 
+is based on the work by Wierichs et al. [1].
+"""
+
 
 def block_diag(*blocks):
     """Create a block-diagonal matrix from the given blocks."""
@@ -32,20 +37,14 @@ def bdi(U, p=None, q=None):
     if p + q != dim:
         raise ValueError("p + q must equal U.shape[0]")
 
+    # Verify unitary
     if not np.allclose(U @ U.conj().T, np.eye(dim), atol=1e-10):
         raise ValueError("U is not unitary")
 
-    # Pass q=p (not the BDI(p,q) q) to scipy.linalg.cossin. This forces a
-    # *symmetric* column count, which produces the canonical BDI(p,q) layout
-    # where vh splits as p|q (matching u's p|q split) instead of q|p. Without
-    # this, asymmetric (p != q) splits return a cs_mat containing a permutation
-    # component that cannot be expressed as plane rotations, breaking the
-    # Pauli mapping for non-power-of-2 dimensions. (Trick borrowed from
-    # kak-tools: kak_tools/numerical_decompositions.py:bdi_kak.)
+    # CS decomposition, use q=p for balanced split
     (k11, k12), theta, (k21, k22) = cossin(U, p=p, q=p, separate=True)
 
-    # Extract determinant SIGNS for robust handling of recursive subproblems
-    # Use signs instead of raw values to avoid numerical precision issues
+    # Extract determinant signs to verify all blocks are in SO group (det=+1)
     def get_det_sign(m, tol=1e-8):
         d = np.linalg.det(m)
         d = np.real_if_close(d, tol=1000)
@@ -116,8 +115,7 @@ def build_kak(k11, k12, theta, k21, k22):
 
 def recursive_bdi(U, num_iter=None, return_all=False):
     """
-    Recursively apply BDI decomposition to U, returning a list of operations at the end.
-    Uses similar approach as Wierichs.
+    Recursively apply BDI decomposition to U, returning a list of operations at the end..
 
     Each op is a tuple: (matrix_or_angles, start, end, type)
     where type is one of: k1, k2, a, a0.
@@ -169,9 +167,6 @@ def recursive_bdi(U, num_iter=None, return_all=False):
                 new_ops.append((op, start, end, op_type))
                 continue
 
-            # Only recurse if the actual matrix size matches the range size
-            # This is important for CS decomposition with unbalanced partitions
-            # where k12 and k21 might not be square
             if not isinstance(op, np.ndarray) or op.shape[0] != size:
                 new_ops.append((op, start, end, op_type))
                 continue
@@ -181,8 +176,6 @@ def recursive_bdi(U, num_iter=None, return_all=False):
             
             d11, d12, dtheta, d21, d22 = bdi(op, sub_p, sub_q)
 
-            # With bdi() now calling cossin(U, p=p, q=p), both K1 and K2 split
-            # symmetrically as p|q, so K2 placement matches K1.
             new_ops.extend([
                 (d11, start, start + sub_p, "k1"),
                 (d12, start + sub_p, end, "k1"),

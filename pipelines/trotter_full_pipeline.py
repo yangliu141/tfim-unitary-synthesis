@@ -1,11 +1,11 @@
 """
-First-order Trotter pipeline for the Transverse Field Ising Model.
+First-order Trotter pipeline for the TFIM.
 
     H_TFIM --split--> H_coupling + H_field
     --first-order Trotter--> {exp(-i theta_k P_k)}
     --optional verification--> compare with exp(-i H t)
 
-Usage:  python trotter_pipeline.py [n] [t] [r]
+Usage:  python pipelines/trotter_full_pipeline.py [n] [t] [r]
         n: number of qubits       
         t: evolution time         (default 1.0)
         r: Trotter steps          
@@ -14,10 +14,13 @@ Usage:  python trotter_pipeline.py [n] [t] [r]
 import sys
 import os
 import time
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "TFIM"))
-from trotterization import trotter_pauli_decomp, unitary_from_pauli_decomp,phase_aligned_error
-from build_TFIM import TFIM_Ham
-from gate_counting import pauli_rot_elementary_counts
+
+# Make the repo root importable so the `functions` package is found
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from functions.trotter.trotterization import trotter_pauli_decomp, unitary_from_pauli_decomp,phase_aligned_error
+from functions.common.build_TFIM import TFIM_Ham
+from functions.common.gate_counting import pauli_rot_elementary_counts
 from scipy.linalg import expm
 import numpy as np
 
@@ -64,7 +67,7 @@ def main(n_qubits, trotter_steps, t=1.0, verbose=True):
     # [3] Verify by reconstructing exp(-i H t) — only feasible for small n
     err = None
     verification_time = None
-    if n <= 8:
+    if n <= 7:
         verify_start = time.time()
         H = TFIM_Ham(n, J=J, h=h, rotated=rotated, periodic=periodic)
         U_ref = expm(-1.0j * H * t)
@@ -77,10 +80,10 @@ def main(n_qubits, trotter_steps, t=1.0, verbose=True):
             print(f"    Verification time: {verification_time:.8f} seconds")
     else:
         if verbose:
-            print(f"\n[3] Skipped verification (n={n} > 8): full Hilbert space reconstruction infeasible.")
+            print(f"\n[3] Skipped verification (n={n} > 7): full Hilbert space reconstruction infeasible.")
 
     # Compile Pauli rotations to elementary {CNOT, single-qubit} gates for a
-    # fair comparison with the Naive pipeline (analysis step, outside the timer).
+    # fair comparison with the Naive pipeline.
     elem = pauli_rot_elementary_counts(pauli_decomp)
 
     results["Pauli decomposition"] = pauli_decomp
@@ -99,10 +102,10 @@ def main(n_qubits, trotter_steps, t=1.0, verbose=True):
     pipeline_time_end = time.time()
     results["Total pipeline time"] = pipeline_time_end - pipeline_time_start
 
-    # Export results to a text file for later analysis
+    # Export results
     results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Results")
     os.makedirs(results_dir, exist_ok=True)
-    results_file = os.path.join(results_dir, "TFIM_trotter_results_large_r.txt")
+    results_file = os.path.join(results_dir, "Trotter_results.txt")
     with open(results_file, "a") as f:
         if f.tell() == 0:
             f.write("n_qubits, trotter_steps, total_time, decomposition_time, verification_time, error, total_gates, cnot, single_qubit, elementary_total\n")
@@ -128,13 +131,13 @@ if __name__ == "__main__":
         main(n_arg, trotter_steps=r_arg, t=t_arg)
         sys.exit()
 
-    n_values = [3]
+    n_values = [1, 2, 3, 5, 7, 10, 13, 19, 26, 37, 51, 71, 100, 138, 193]
 
     all_results = {}
 
     for n in n_values:
-        r_values = np.logspace(0, 6, 100, dtype=int)
-
+        #r_values = np.logspace(0, 6, 100, dtype=int)
+        r_values = [1, 2, 4, 8, n, 2*n, 4*n]
         for r in r_values:
             results = main(n, trotter_steps=r)
             all_results[(n, r)] = results
@@ -149,13 +152,13 @@ if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
 
-    # ------------------------------------------------------------
-    # Plot 1: Gate count vs r, one curve per n
-    # ------------------------------------------------------------
+    # Gate count vs r, one curve per n
     plt.figure(figsize=(8, 5))
 
     for n in n_values:
-        r_values = np.logspace(0, 6, 100, dtype=int)
+        #r_values = np.logspace(0, 6, 100, dtype=int)
+        r_values = [1, 2, 4, 8, n, 2*n, 4*n]
+
         gate_counts = [
             all_results[(n, r)]["Gate counts"]["total"]
             for r in r_values
@@ -169,13 +172,12 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-    # ------------------------------------------------------------
-    # Plot 2: Error vs r, one curve per n
-    # ------------------------------------------------------------
+    # Error vs r, one curve per n
     plt.figure(figsize=(8, 5))
 
     for n in n_values:
-        r_values = np.logspace(0, 6, 100, dtype=int)
+        #r_values = np.logspace(0, 6, 100, dtype=int)
+        r_values = [1, 2, 4, 8, n, 2*n, 4*n]
         errors = [
             all_results[(n, r)]["Error"]
             for r in r_values
@@ -190,13 +192,12 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-    # ------------------------------------------------------------
-    # Plot 3: Decomposition time vs r, one curve per n
-    # ------------------------------------------------------------
+    # Decomposition time vs r, one curve per n
     plt.figure(figsize=(8, 5))
 
     for n in n_values:
-        r_values = np.logspace(0, 6, 100, dtype=int)
+        #r_values = np.logspace(0, 6, 100, dtype=int)
+        r_values = [1, 2, 4, 8, n, 2*n, 4*n]
         times = [
             all_results[(n, r)]["Decomposition time"]
             for r in r_values

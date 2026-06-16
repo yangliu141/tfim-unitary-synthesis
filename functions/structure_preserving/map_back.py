@@ -1,7 +1,7 @@
 import numpy as np
 
 def pw_to_majorana(pw):
-    n = len(pw)
+    """Map a Pauli word to the corresponding Majorana operator indices and sign."""
 
     positions = []
     for j, pauli in enumerate(pw):
@@ -32,24 +32,24 @@ def pw_to_majorana(pw):
 
 
 def build_majorana_dla_map(DLA_generators):
+    """Build a mapping from Majorana operator pairs 
+    to their corresponding Pauli words and signs"""
     map = {}
 
     for gen in DLA_generators:
         sign, maj_indicies = pw_to_majorana(gen)
 
-        # Convert back from numpy indicing 
-        #i = maj_indicies[0]
-        #j = maj_indicies[1] 
         map[maj_indicies] = (gen,sign)
     return map
 
 def angles_to_reducible(angles, start, end, mapping):
+    """
+    Convert angles from an A-block into the corresponding Pauli words
+    using the provided Majorana mapping.
+    """
 
     op = {}
     size = end - start
-    # scipy CS layout: rotation rows of the A-block are (k, q+k) where q = size - size//2.
-    # For even size, q = size//2 so this matches a symmetric p|p split; for odd size
-    # we must use q (the larger half).
     q = size - size // 2
 
     for k, angle in enumerate(angles):
@@ -63,6 +63,10 @@ def angles_to_reducible(angles, start, end, mapping):
 
 
 def group_matrix_to_reducible(matrix, start,mapping, tol=1e-8):
+    """
+    Convert K-block matrices into the corresponding Pauli words
+    using the provided Majorana mapping.
+    """
 
     op = {}
     seen_ids = set()
@@ -93,6 +97,11 @@ def group_matrix_to_reducible(matrix, start,mapping, tol=1e-8):
     return op
 
 def map_ops_to_pauli(recursive_decomp, mapping, time=None, tol=1e-8):
+    """
+    Map the BDI decomposition ops (k1, k2, a, a0) back to Pauli words using 
+    the Majorana mapping. The 'a0' angles are rescaled by the original time t, 
+    while 'a' angles are not rescaled.
+    """
     pauli_decomp = []
 
     for matrix_or_angles, start, end, op_type in recursive_decomp:

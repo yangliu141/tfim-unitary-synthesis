@@ -1,10 +1,11 @@
 import numpy as np
 
+"""
 # Gate format: (gate_name, angle, wires)
 #   gate_name : "Rz" | "Ry" | "CNOT"
 #   angle     : float for Rz/Ry, None for CNOT
 #   wires     : [qubit] for single-qubit, [control, target] for CNOT
-
+"""
 
 def to_gates(ops, n):
     """Convert ops from decompose() into a flat list of elementary gates.

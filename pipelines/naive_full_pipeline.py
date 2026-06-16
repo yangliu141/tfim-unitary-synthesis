@@ -1,15 +1,10 @@
-#!/usr/bin/env python3
 """
 Naive TFIM decomposition pipeline.
 
     H_TFIM --expm--> U(t)
     --recursive AIII/Type-A--> ops --ZYZ/UCR--> {Ry, Rz, CNOT}
 
-Timing note: setup (building H and computing expm) is excluded from
-"decomposition time" to match the TFIM pipeline convention, where steps
-[1]-[3] (DLA, isomorphism, SO(2n) exponentiation) are also excluded.
-
-Usage:  python full_pipeline.py [n] [t]
+Usage:  python pipelines/naive_full_pipeline.py [n] [t]
         n: number of qubits (default 4)
         t: evolution time   (default 1.0)
 """
@@ -21,15 +16,18 @@ import numpy as np
 from scipy.linalg import expm
 from collections import Counter
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "TFIM"))
+# Make the repo root importable so the `functions` package is found
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from decompose import decompose
-from single_qubit_decomposer import to_gates
-from build_TFIM import TFIM_Ham
+from functions.naive.decompose import decompose
+from functions.naive.single_qubit_decomposer import to_gates
+from functions.common.build_TFIM import TFIM_Ham
 
 
 def phase_aligned_error(U_ref, U_test):
-    # Frobenius norm, identical metric/convention to the TFIM and Trotter pipelines.
+    """
+    Compute the phase-aligned Frobenius norm error between two unitaries.
+    """
     d = U_ref.shape[0]
     phase = np.angle(np.trace(U_test @ U_ref.conj().T) / d)
     return float(np.linalg.norm(U_ref - np.exp(-1j * phase) * U_test))
@@ -57,7 +55,7 @@ def main(n_qubits, t=1.0, verbose=True):
         print(f"\n[1] U(t) shape: {U_t.shape}, "
               f"unitary: {np.allclose(U_t @ U_t.conj().T, np.eye(2**n), atol=1e-10)}")
 
-    # [2] AIII / Type-A recursive decomposition  ← timer starts here
+    # [2] AIII / Type-A recursive decomposition <- timer starts here
     time_start = time.time()
 
     ops = decompose(U_t)
@@ -69,7 +67,7 @@ def main(n_qubits, t=1.0, verbose=True):
     gates = to_gates(ops, n)
     gate_counts = Counter(name for name, _, _ in gates)
 
-    time_end = time.time()           # ← timer ends here
+    time_end = time.time() # <- timer ends here
 
     if verbose:
         print(f"\n[3] Elementary gates: {len(gates)}, breakdown: {dict(gate_counts)}")
@@ -112,7 +110,7 @@ def main(n_qubits, t=1.0, verbose=True):
     results["Decomposition time"] = time_end - time_start
     results["Total pipeline time"] = pipeline_time_end - pipeline_time_start
 
-    # Export results (single file, same schema as TFIM_decomposition_results.txt)
+    # Export results
     results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Results")
     os.makedirs(results_dir, exist_ok=True)
     results_file = os.path.join(results_dir, "Naive_decomposition_results.txt")
@@ -150,11 +148,13 @@ if __name__ == "__main__":
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
+    # Plot decomposition time vs n
     ax1.plot(n_values, times, color="red", marker="o")
     ax1.set_xlabel("Number of qubits (n)")
     ax1.set_ylabel("Decomposition time (seconds)")
     ax1.set_title("Decomposition time vs n")
 
+    # Plot total gate count vs n
     ax2.plot(n_values, gate_totals, color="blue", marker="o")
     ax2.set_xlabel("Number of qubits (n)")
     ax2.set_ylabel("Total gate count")
